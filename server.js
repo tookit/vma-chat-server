@@ -9,34 +9,47 @@ const io = require('socket.io')(server,{
   }
 })
 const  clients = new Set()
-let users = [] // online users
-const updateUsers = (user) => {
-  const find = users.find((item) => item.clientId === user.clientId)
+let users = [] // online users {username: '', ip: ''}
+function updateUsers(user) {
+  const find = users.find((item) => item.username === user.username)
   if (find === undefined) {
     users.push(user)
   }
 }
+
+function bindUser(username, clientId) {
+  users.forEach((item) =>　{
+    if(item.clientId === clientId) {
+      item.username  =username
+      return item
+    }
+  })
+  return false
+}
+
 //handle the socket
 io.sockets.on('connection', (socket) =>  {
-    const { address, headers } = socket.handshake
-    const agent = headers['user-agent']
-    const user = { ip: address, clientId: socket.id, agent: agent,username:socket.id, status: 1 }
-    updateUsers(user)
-    console.log(`${socket.id} is using ${agent}  connected from ${address}` )
+
     clients.add(socket.id)
     socket.join(ROOM)
-    socket.on('join', ( { username, status, clientId } ) => {
-      io.local.emit('join', users)
+    socket.on('join', ( user ) => {
+      const { address, headers } = socket.handshake
+      const agent = headers['user-agent']
+      const item = { ip: address, clientId: socket.id, agent: agent, username:user.username }  
+      updateUsers(item)    
+      console.log( user.username + ': joined.')
+      io.local.emit('join', item)
     })
     socket.on('message', ( message ) => {
-        console.log(socket.id + `send : ${message.text} ${message.createdAt}`)
+        console.log(message.username + ` send : ${message.text} ${message.createdAt}`)
         socket.broadcast.emit('message', message)
     })
     socket.on('disconnect', () => {
-      clients.delete(socket.id)
+      const user = users.find(item => item.clientId === socket.id)
       users = users.filter(item => item.clientId !== socket.id)
-      console.log(socket.id + ': disconnected')
-      socket.broadcast.emit('leave', socket.id)
+      if(user) {
+        socket.broadcast.emit('leave', user)
+      }
   })    
 })
 server.listen(process.env.PORT || 3000)
