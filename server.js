@@ -38,7 +38,7 @@ io.sockets.on('connection', (socket) =>  {
       const item = { ip: address, clientId: socket.id, agent: agent, username:user.username }  
       updateUsers(item)    
       console.log( user.username + ': joined.')
-      io.local.emit('join', item)
+      io.local.emit('join', users)
     })
     socket.on('message', ( message ) => {
         console.log(message.username + ` send : ${message.text} ${message.createdAt}`)
